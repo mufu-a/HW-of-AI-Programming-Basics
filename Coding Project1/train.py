@@ -1,14 +1,16 @@
 import math
+import os
 
 import torch
 import torch.nn as nn
+from sklearn.metrics import accuracy_score, recall_score, precision_score
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from config import (
-    BATCH_SIZE, EPOCHS, LR, WEIGHT_DECAY, NUM_WORKERS,
+    BATCH_SIZE, EPOCHS, LR, DROPOUT, WEIGHT_DECAY, NUM_WORKERS,
     WARMUP_RATIO, DEVICE, CHECKPOINT_PATH, SEED,
 )
 from dataset import build_splits, OCTDataset
@@ -54,14 +56,31 @@ def eval_epoch(model, loader, criterion, device, pbar):
     return total_loss / total, correct / total
 
 
+@torch.no_grad()
+def run_test(model, loader, device):
+    model.eval()
+    all_preds, all_labels = [], []
+    for imgs, labels in loader:
+        imgs = imgs.to(device)
+        preds = model(imgs).argmax(dim=1).cpu()
+        all_preds.extend(preds.tolist())
+        all_labels.extend(labels.tolist())
+    acc = accuracy_score(all_labels, all_preds)
+    recall = recall_score(all_labels, all_preds, average=None)
+    precision = precision_score(all_labels, all_preds, average=None)
+    return acc, recall, precision
+
+
 def train():
     print(f"Using device: {DEVICE}")
     set_seed()
-    train_samples, val_samples, _ = build_splits()
+    train_samples, val_samples, test_samples = build_splits()
     train_loader = DataLoader(OCTDataset(train_samples), BATCH_SIZE, shuffle=True,
                                num_workers=NUM_WORKERS, pin_memory=(DEVICE == "cuda"))
     val_loader = DataLoader(OCTDataset(val_samples), BATCH_SIZE, shuffle=False,
                              num_workers=NUM_WORKERS, pin_memory=(DEVICE == "cuda"))
+    test_loader = DataLoader(OCTDataset(test_samples), BATCH_SIZE, shuffle=False,
+                              num_workers=NUM_WORKERS, pin_memory=(DEVICE == "cuda"))
 
     model = CNN().to(DEVICE)
     criterion = nn.CrossEntropyLoss()
@@ -113,9 +132,30 @@ def train():
                 "history": history,
             }, CHECKPOINT_PATH)
 
-    torch.save(history, "history.pth")
-    plot_curves(history)
-    print(f"Training done. Best val acc: {best_acc:.4f}")
+    os.makedirs("figure", exist_ok=True)
+    os.makedirs("output", exist_ok=True)
+
+    file_tag = f"{BATCH_SIZE}_{LR}_{DROPOUT}"
+    figure_path = f"figure/{file_tag}.png"
+    output_path = f"output/{file_tag}.txt"
+
+    plot_curves(history, save_path=figure_path)
+
+    checkpoint = torch.load(CHECKPOINT_PATH, map_location=DEVICE, weights_only=False)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    test_acc, test_recall, test_precision = run_test(model, test_loader, DEVICE)
+
+    class_names = ["Class 0 (Healthy)", "Class 1 (Diseased)"]
+    with open(output_path, "w") as f:
+        f.write(f"Hyperparameters: batch_size={BATCH_SIZE}, lr={LR}, dropout={DROPOUT}\n")
+        f.write(f"Best val accuracy: {best_acc:.4f}\n")
+        f.write(f"Test Accuracy: {test_acc:.4f}\n")
+        for i, name in enumerate(class_names):
+            f.write(f"  {name} — Recall: {test_recall[i]:.4f}  Precision: {test_precision[i]:.4f}\n")
+
+    print(f"Results saved to {output_path}")
+    print(f"Figures saved to {figure_path}")
+    print(f"Training done. Best val acc: {best_acc:.4f}  Test acc: {test_acc:.4f}")
 
 
 if __name__ == "__main__":
