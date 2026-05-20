@@ -23,9 +23,9 @@ IMAGE_MEAN = (0.485, 0.456, 0.406)
 IMAGE_STD  = (0.229, 0.224, 0.225)
 
 # ==================== 训练超参数 ====================
-BATCH_SIZE    = 64
-LR            = 1e-3
-EPOCHS        = 40
+BATCH_SIZE    = 16
+LR            = 5e-4
+EPOCHS        = 60
 WEIGHT_DECAY  = 1e-4
 DROPOUT       = 0.3
 

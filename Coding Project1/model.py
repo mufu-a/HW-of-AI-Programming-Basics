@@ -19,7 +19,7 @@ class ResConvBlock(nn.Module):
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_ch)
 
-        self.skip = nn.Sequential()
+        self.skip = nn.Sequential() #解决通道问题，通道不变的时候直接恒等映射，否则使用1x1卷积调整通道数
         if in_ch != out_ch:
             self.skip = nn.Sequential(
                 nn.Conv2d(in_ch, out_ch, kernel_size=1, bias=False),
@@ -49,7 +49,7 @@ class MedicalCNN(nn.Module):
         self.block3 = ResConvBlock(64, 128, pool=True)   # 128×8×8
         self.block4 = ResConvBlock(128, 256, pool=True)  # 256×4×4
 
-        self.gap = nn.AdaptiveAvgPool2d(1)
+        self.gap = nn.AdaptiveAvgPool2d(1) #不直接flatten，而是先全局平均池化到256×1×1，再flatten成256维向量
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
