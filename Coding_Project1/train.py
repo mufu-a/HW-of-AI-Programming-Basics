@@ -184,18 +184,19 @@ def train():
     test_dataset  = MedicalImageDataset(test_samples,  transform=get_transforms(train=False))
 
     use_pin_memory = (DEVICE == "cuda")
+    num_workers = 0 if DEVICE == "mps" else 2  # MPS 不支持多进程 DataLoader
 
     if USE_WEIGHTED_SAMPLER:
         train_sampler = create_weighted_sampler(train_samples)
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, sampler=train_sampler,
-                                  num_workers=2, pin_memory=use_pin_memory)
+                                  num_workers=num_workers, pin_memory=use_pin_memory)
     else:
         train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True,
-                                  num_workers=2, pin_memory=use_pin_memory)
+                                  num_workers=num_workers, pin_memory=use_pin_memory)
     val_loader   = DataLoader(val_dataset,   batch_size=BATCH_SIZE, shuffle=False,
-                              num_workers=2, pin_memory=use_pin_memory)
+                              num_workers=num_workers, pin_memory=use_pin_memory)
     test_loader  = DataLoader(test_dataset,  batch_size=BATCH_SIZE, shuffle=False,
-                              num_workers=2, pin_memory=use_pin_memory)
+                              num_workers=num_workers, pin_memory=use_pin_memory)
 
     # ---- 3. 模型、损失函数、优化器 ----
     model = MedicalCNN(dropout=DROPOUT).to(DEVICE)

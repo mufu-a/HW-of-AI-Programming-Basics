@@ -27,11 +27,12 @@ def evaluate_only():
     test_dataset = MedicalImageDataset(test_samples, transform=get_transforms(train=False))
 
     use_pin_memory = (DEVICE == "cuda")
+    num_workers = 0 if DEVICE == "mps" else 2
 
     val_loader  = DataLoader(val_dataset,  batch_size=BATCH_SIZE, shuffle=False,
-                             num_workers=2, pin_memory=use_pin_memory)
+                             num_workers=num_workers, pin_memory=use_pin_memory)
     test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False,
-                             num_workers=2, pin_memory=use_pin_memory)
+                             num_workers=num_workers, pin_memory=use_pin_memory)
 
     # ---- 2. 加载模型 ----
     model_path = os.path.join(OUTPUT_DIR, "best_model.pth")

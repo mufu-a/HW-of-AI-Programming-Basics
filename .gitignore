@@ -1,3 +1,10 @@
 .DS_Store
 __pycache__/
 *.pyc
+*.log
+*.gz
+*.claude
+*.vscode
+figure/
+archive/
+output/
